@@ -2,8 +2,13 @@
 
 pragma solidity >=0.8.2 <0.9.0;
 
+interface IERC20 {
+    function transferFrom(address, address, uint256) external returns (bool);
+}
+
 contract BuyMeACoffee {
-    address public admin;
+    address public immutable admin;
+    IERC20 public immutable usdc;
 
     uint256 public creatorsCount;
 
@@ -15,11 +20,17 @@ contract BuyMeACoffee {
     }
 
     event creatorJoined(uint256 indexed id, address indexed creatorAddr);
-    event buyACoffee(address indexed creator, uint256 amount);
+    event CoffeeBought(
+        uint256 indexed id,
+        address indexed buyer,
+        uint256 amount
+    );
 
     mapping(uint256 => Creator) public creators;
 
-    constructor() {
+    constructor(address _usdcAddress) {
+        address usdcAddress = _usdcAddress;
+        usdc = IERC20(usdcAddress);
         admin = msg.sender;
     }
 
@@ -37,6 +48,23 @@ contract BuyMeACoffee {
         });
 
         emit creatorJoined(creatorsCount, msg.sender);
+    }
+
+    function buyACoffee(uint256 _id, uint256 _amount) external {
+        Creator storage selectedCreator = creators[_id];
+        require(
+            selectedCreator.creatorAddr != address(0),
+            "Creator does not exist"
+        );
+
+        bool success = usdc.transferFrom(
+            msg.sender,
+            selectedCreator.creatorAddr,
+            _amount
+        );
+        require(success, "Transfer failed");
+
+        emit CoffeeBought(_id, msg.sender, _amount);
     }
 
     function getCreator(uint _id) public view returns (Creator memory) {
